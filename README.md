@@ -20,4 +20,5 @@ mksu和ksu-next仓库已合并，后续只更新此仓库
 - **M-KernelSU编译脚本**：由[xiaonan7777](https://github.com/xiaonan7777)编写
 
 - **KernelSU-Next编译脚本**：由[Laomaoi](https://github.com/Laomaoi)编写
+
 特别感谢开源社区的贡献！
