@@ -10,6 +10,8 @@ mksu和ksu-next仓库已合并，后续只更新此仓库
 - **一加开源内核地址**：感谢[OnePlusOSS](https://github.com/OnePlusOSS/kernel_manifest)愿意开源一加的内核文件及清单
 
 - **KernelSU**: 由[tiann](https://github.com/tiann)开发
+
+- **Magic-KernelSU**: 由[5ec1cff](https://github.com/5ec1cff/KernelSU)开发
   
 - **KernelSU-Next**: 由[rifsxd](https://github.com/rifsxd/KernelSU-Next)开发
   
