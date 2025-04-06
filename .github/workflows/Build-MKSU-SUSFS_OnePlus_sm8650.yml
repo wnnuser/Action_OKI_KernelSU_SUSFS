@@ -1,123 +1,97 @@
-name: Build MKSU-SUSFS For OnePlus devices
+name: Build MKSU-SUSFS OnePlus sm8650
+
 on:
   workflow_dispatch:
-   inputs:
-      CPU:
-        description: "处理器分支"
+    inputs:
+      manifest_file:
+        description: '选择设备型号'
         required: true
-        default: 'sm8650'
-      FEIL:
-        description: "配置文件"
-        required: true
-        default: 'oneplus_ace3_pro_v' 
-      CPUD:
-        description: "处理器代号"
-        required: true
-        default: 'pineapple'
-      ANDROID_VERSION:
-        description: "内核安卓版本"
-        required: true
-        default: 'android14'
-      KERNEL_VERSION:
-        description: "内核版本"
-        required: true
-        default: '6.1'
-      SUSFS_ENABLED:
-        description: "添加 SUSFS"
-        required: true
+        type: choice
+        options:
+          - OnePlus 12
+          - OnePlus 13R
+          - OnePlus Ace3 Pro
+          - OnePlus Ace3v
+          - OnePlus Ace5
+          - OnePlus Pad Pro
+      enable_lto:
+        description: '启用 Full LTO'
         type: boolean
-        default: true
+        default: false
+      enable_polly:
+        description: '启用 Polly'
+        type: boolean
+        default: false
+      enable_o3:
+        description: '启用 O3 优化'
+        type: boolean
+        default: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@master
+      - uses: actions/checkout@main
+
+      - uses: jlumbroso/free-disk-space@main
         with:
-          root-reserve-mb: 8192
-          temp-reserve-mb: 2048
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          
-      - name: Configure Git
-        run: |
-         git config --global user.name "build"
-         git config --global user.email "liw378721@gmail.com"
+          tool-cache: true
 
-      - name: Install dependencies
-        run: |
-         sudo apt update && sudo apt upgrade -y
-         sudo apt install -y python3 git curl
-
-      - name: Install repo tool
-        run: |
-         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
-         chmod a+x ~/repo
-         sudo mv ~/repo /usr/local/bin/repo
-
-      - name: Initialize repo 和 sync
-        run: |
-         mkdir kernel_workspace && cd kernel_workspace
-         repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/${{ github.event.inputs.CPU }} -m ${{ github.event.inputs.FEIL }}.xml --depth=1
-         repo sync
-         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-         rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-         sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
-         sed -i 's/ -dirty//g' kernel_platform/external/dtc/scripts/setlocalversion
-
-      - name: Set up MKSU
-        run: |
-         cd kernel_workspace/kernel_platform
-         curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/refs/heads/main/kernel/setup.sh" | bash -
-         cd KernelSU
-         git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n
-         KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
-         echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-         sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
-        
-      - name: Set up susfs
-        if: github.event.inputs.SUSFS_ENABLED == 'true'
-        run: |
-           cd kernel_workspace
-           git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}
-           git clone https://github.com/TanakaLun/kernel_patches4mksu.git
-           cd kernel_platform
-           cp ../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
-           cp ../kernel_patches4mksu/mksu_susfs.patch ./KernelSU/
-           cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch ./common/
-           cp ../susfs4ksu/kernel_patches/fs/* ./common/fs/
-           cp ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-
-           # Apply patches
-           cd ./KernelSU
-           patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-           patch -p1 --forward < mksu_susfs.patch || true
-           cd ../common
-           patch -p1 < 50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch || true
-           cp ../../kernel_patches4mksu/69_hide_stuff.patch ./
-           patch -p1 -F 3 < 69_hide_stuff.patch
-           git add -A && git commit -a -m "BUILD Kernel"
-           cd ..
-           cd ./msm-kernel && git add -A && git commit -a -m "BUILD Kernel"
-           cd ..
-           
-      - name: Build kernel
-        run: |
-         cd kernel_workspace
-         ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} gki
-         
-      - name: Make AnyKernel3
-        run: |
-         git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
-         rm -rf ./AnyKernel3/.git
-         cp kernel_workspace/kernel_platform/out/msm-kernel-${{ github.event.inputs.CPUD }}-gki/dist/Image ./AnyKernel3/
-
-      - name: Upload AnyKernel3
-        uses: actions/upload-artifact@v4
+      - uses: actions/setup-python@main
         with:
-         name: AnyKernel3_MKSU_${{ env.KSUVER }}_${{ github.event.inputs.FEIL }}
-         path: ./AnyKernel3/*
+          python-version: "3.x"
+
+      - name: Install dependencies and Clang 19
+        run: |
+         sudo apt-get update
+         sudo apt-get install -y repo git curl patch lld
+         sudo bash -c "echo 'deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-19 main' > /etc/apt/sources.list.d/llvm.list"
+         sudo bash -c "echo 'deb-src http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-19 main' >> /etc/apt/sources.list.d/llvm.list"
+         wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+         sudo apt-get update
+         sudo apt-get install -y clang-19 lld-19 llvm-19
+         mkdir kernel_workspace
+
+      - name: Map friendly name to manifest file
+        id: map_manifest
+        run: |
+          case "${{ github.event.inputs.manifest_file }}" in
+            "OnePlus 12") manifest="oneplus12_v" ;;
+            "OnePlus 13R") manifest="oneplus_13r" ;;
+            "OnePlus Ace3 Pro") manifest="oneplus_ace3_pro" ;;
+            "OnePlus Ace3v") manifest="oneplus_ace3_pro_v" ;;
+            "OnePlus Ace5") manifest="oneplus_ace5" ;;
+            "OnePlus Pad Pro") manifest="oneplus_pad2_v" ;;
+          esac
+          echo "mapped_manifest=$manifest" >> $GITHUB_OUTPUT
+
+      - name: Initialize repo and sync
+        working-directory: kernel_workspace
+        run: |
+          repo init \
+            -u https://github.com/OnePlusOSS/kernel_manifest.git \
+            -b refs/heads/oneplus/sm8650 \
+            -m ${{ steps.map_manifest.outputs.mapped_manifest }}.xml \
+            --depth=1 --repo-rev=v2.16
+          repo --trace sync -c -j$(nproc) --no-tags --fail-fast
+
+      - name: Build Kernel
+        working-directory: kernel_workspace
+        id: build
+        run: | 
+         curl -Ls https://raw.githubusercontent.com/XiaoNan7777/oneplus_susfs_ksu_kernel/main/build_mksu.sh -o build_mksu.sh
+         chmod +x build_mksu.sh
+         ./build_mksu.sh ${{ steps.map_manifest.outputs.mapped_manifest }} \
+                         ${{ github.event.inputs.enable_lto }} \
+                         ${{ github.event.inputs.enable_polly }} \
+                         ${{ github.event.inputs.enable_o3 }} 
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@main
+        with:
+          name: "AnyKernel3-${{ steps.map_manifest.outputs.mapped_manifest }}-${{ steps.build.outputs.kernel_version }}-MKSU-${{ steps.build.outputs.ksu_version }}-SUSFS-${{ steps.build.outputs.susfs_version }}"
+          path: |
+              kernel_workspace/AnyKernel3
+              kernel_directory_structure.txt
+              compression-level: 9
