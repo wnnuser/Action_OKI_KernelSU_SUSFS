@@ -11,7 +11,6 @@ on:
           - OnePlus 12
           - OnePlus 13R
           - OnePlus Ace3 Pro
-          - OnePlus Ace3v
           - OnePlus Ace5
           - OnePlus Pad Pro
       enable_lto:
@@ -59,8 +58,7 @@ jobs:
           case "${{ github.event.inputs.manifest_file }}" in
             "OnePlus 12") manifest="oneplus12_v" ;;
             "OnePlus 13R") manifest="oneplus_13r" ;;
-            "OnePlus Ace3 Pro") manifest="oneplus_ace3_pro" ;;
-            "OnePlus Ace3v") manifest="oneplus_ace3_pro_v" ;;
+            "OnePlus Ace3 Pro") manifest="oneplus_ace3_pro_v" ;;
             "OnePlus Ace5") manifest="oneplus_ace5" ;;
             "OnePlus Pad Pro") manifest="oneplus_pad2_v" ;;
           esac
