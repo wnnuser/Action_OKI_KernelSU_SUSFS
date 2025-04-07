@@ -1,0 +1,89 @@
+name: Build MKSU-SUSFS OnePlus sm7675
+
+on:
+  workflow_dispatch:
+    inputs:
+      manifest_file:
+        description: '选择设备型号'
+        required: true
+        type: choice
+        options:
+          - OnePlus Ace 3V
+          - OnePlus Nord 4
+      enable_lto:
+        description: '启用 Full LTO'
+        type: boolean
+        default: false
+      enable_polly:
+        description: '启用 Polly'
+        type: boolean
+        default: false
+      enable_o3:
+        description: '启用 O3 优化'
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@main
+
+      - uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+
+      - uses: actions/setup-python@main
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies and Clang 19
+        run: |
+         sudo apt-get update
+         sudo apt-get install -y repo git curl patch lld
+         sudo bash -c "echo 'deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-19 main' > /etc/apt/sources.list.d/llvm.list"
+         sudo bash -c "echo 'deb-src http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-19 main' >> /etc/apt/sources.list.d/llvm.list"
+         wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+         sudo apt-get update
+         sudo apt-get install -y clang-19 lld-19 llvm-19
+         mkdir kernel_workspace
+
+      - name: Map friendly name to manifest file
+        id: map_manifest
+        run: |
+          case "${{ github.event.inputs.manifest_file }}" in
+            "OnePlus Ace 3V") manifest="oneplus_ace_3v_v" ;;
+            "OnePlus Nord 4") manifest="oneplus_nord_4_v" ;;
+          esac
+          echo "mapped_manifest=$manifest" >> $GITHUB_OUTPUT
+
+      - name: Initialize repo and sync
+        working-directory: kernel_workspace
+        run: |
+          repo init \
+            -u https://github.com/OnePlusOSS/kernel_manifest.git \
+            -b refs/heads/oneplus/sm7675 \
+            -m ${{ steps.map_manifest.outputs.mapped_manifest }}.xml \
+            --depth=1 --repo-rev=v2.16
+          repo --trace sync -c -j$(nproc) --no-tags --fail-fast
+
+      - name: Build Kernel
+        working-directory: kernel_workspace
+        id: build
+        run: | 
+         curl -Ls https://raw.githubusercontent.com/mcxiaochenn/Action_OKI_KernelSU_SUSFS/refs/heads/main/build_shell/build_mksu_sm7675.sh -o build_mksu_sm7675.sh
+         chmod +x build_mksu.sh
+         ./build_mksu.sh ${{ steps.map_manifest.outputs.mapped_manifest }} \
+                         ${{ github.event.inputs.enable_lto }} \
+                         ${{ github.event.inputs.enable_polly }} \
+                         ${{ github.event.inputs.enable_o3 }} 
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@main
+        with:
+          name: "AnyKernel3-${{ steps.map_manifest.outputs.mapped_manifest }}-${{ steps.build.outputs.kernel_version }}-MKSU-${{ steps.build.outputs.ksu_version }}-SUSFS-${{ steps.build.outputs.susfs_version }}"
+          path: |
+              kernel_workspace/AnyKernel3
+              kernel_directory_structure.txt
+              compression-level: 9
