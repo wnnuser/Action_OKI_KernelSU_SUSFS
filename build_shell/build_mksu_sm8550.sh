@@ -9,7 +9,7 @@ ENABLE_O3="$4"
 
 # 根据 manifest_file 映射 CPUD
 case "$MANIFEST_FILE" in
-    "oneplus11_v" | "oneplus_12r_v" | "oneplus_ace2_pro_v" | "oneplus_ace3")
+    "oneplus11_v" | "oneplus_12r_v" | "oneplus_ace2_pro_v" | "oneplus_ace3_v")
         CPUD="kalama"
         ;;
     *)
