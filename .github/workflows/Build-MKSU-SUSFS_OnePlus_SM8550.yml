@@ -78,7 +78,7 @@ jobs:
         run: | 
          curl -Ls https://raw.githubusercontent.com/mcxiaochenn/Action_OKI_KernelSU_SUSFS/refs/heads/main/build_shell/build_mksu_sm8550.sh -o build_mksu_sm8550.sh
          chmod +x build_mksu_sm8550.sh
-         ./build_mksu_sm8650.sh ${{ steps.map_manifest.outputs.mapped_manifest }} \
+         ./build_mksu_sm8550.sh ${{ steps.map_manifest.outputs.mapped_manifest }} \
                                 ${{ github.event.inputs.enable_lto }} \
                                 ${{ github.event.inputs.enable_polly }} \
                                 ${{ github.event.inputs.enable_o3 }} 
