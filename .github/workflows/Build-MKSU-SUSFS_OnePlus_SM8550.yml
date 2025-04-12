@@ -58,7 +58,7 @@ jobs:
             "OnePlus 11") manifest="oneplus11_v" ;;
             "OnePlus 12R") manifest="oneplus_12r_v" ;;
             "OnePlus Ace2 Pro") manifest="oneplus_ace2_pro_v" ;;
-            "OnePlus Ace3") manifest="oneplus_ace3" ;;
+            "OnePlus Ace3") manifest="oneplus_ace3_v" ;;
           esac
           echo "mapped_manifest=$manifest" >> $GITHUB_OUTPUT
 
