@@ -68,7 +68,7 @@ jobs:
         working-directory: kernel_workspace
         run: |
           repo init \
-            -u https://github.com/OnePlusOSS/kernel_manifest.git \
+            -u https://github.com/realme-kernel-opensource/realme_GTneo6_GTneo6SE-AndroidU-kernel-source.git \
             -b refs/heads/oneplus/sm8650 \
             -m ${{ steps.map_manifest.outputs.mapped_manifest }}.xml \
             --depth=1 --repo-rev=v2.16
